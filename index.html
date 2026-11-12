@@ -388,10 +388,13 @@ noscript {
         Date
         <input name="date" type="date"/>
        </label>
-       <label>
-        Time
-        <input name="time" type="time"/>
-       </label>
+       <div style="display:flex;align-items:flex-end;gap:6px">
+        <label style="flex:1;min-width:0">
+         Time
+         <input name="time" type="time"/>
+        </label>
+        <button id="now" type="button" title="Set date and time to the computer's local clock" style="padding:9px">Now</button>
+       </div>
        <label>
         Clock on printed page
         <select name="clock">
@@ -648,9 +651,11 @@ document.getElementById("printed-fields").innerHTML = printedFields.map(([key, l
 
 // Start with a consistent form, including when the browser restores an old page.
 form.reset();
-const openedAt = new Date();
-form.elements.date.value = `${openedAt.getFullYear()}-${pad2(openedAt.getMonth() + 1)}-${pad2(openedAt.getDate())}`;
-form.elements.time.value = `${pad2(openedAt.getHours())}:${pad2(openedAt.getMinutes())}`;
+function setCurrentDateTime(now = new Date()) {
+  form.elements.date.value = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+  form.elements.time.value = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+}
+setCurrentDateTime();
 
 const dimensionLimits = Object.fromEntries(dimensions.map(key => [key, [
   Number(form.elements[key].getAttribute("min")),
@@ -894,6 +899,10 @@ document.getElementById("print").addEventListener("click", () => {
 document.getElementById("edit-settings").addEventListener("click", () => {
   setPreviewMode(false);
   form.elements.pageTitle.focus();
+});
+document.getElementById("now").addEventListener("click", () => {
+  setCurrentDateTime();
+  render();
 });
 document.getElementById("reset-guides").addEventListener("click", () => {
   form.elements.units.value = "mm";
