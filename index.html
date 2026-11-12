@@ -376,8 +376,11 @@ noscript {
     <button id="tex" type="button">
      Download LaTeX
     </button>
-    <button class="primary" id="print" type="button">
-     Generate print preview
+    <button aria-controls="sheet" class="primary" id="preview" type="button">
+     Preview
+    </button>
+    <button class="primary" hidden="" id="print" type="button">
+     Print / Save PDF
     </button>
    </div>
   </header>
@@ -759,6 +762,8 @@ function setPreviewMode(enabled) {
   const button = document.getElementById("edit-settings");
   button.hidden = !enabled;
   button.setAttribute("aria-expanded", String(!enabled));
+  document.getElementById("preview").hidden = enabled;
+  document.getElementById("print").hidden = !enabled;
 }
 setPreviewMode(params.get("view") === "preview");
 
@@ -967,9 +972,15 @@ form.addEventListener("input", event => {
   render();
 });
 
-document.getElementById("print").addEventListener("click", () => {
+document.getElementById("preview").addEventListener("click", () => {
   if (!render()) { setPreviewMode(false); form.reportValidity(); return; }
-  // Let the SVG/layout update finish before Firefox takes its print snapshot.
+  setPreviewMode(true);
+  window.scrollTo(0, 0);
+  document.getElementById("print").focus({ preventScroll: true });
+});
+document.getElementById("print").addEventListener("click", () => {
+  if (!layout || !validate()) { setPreviewMode(false); form.reportValidity(); return; }
+  // Print the existing sheet without rebuilding its SVG during dialog startup.
   requestAnimationFrame(() => {
     requestAnimationFrame(() => window.print());
   });
