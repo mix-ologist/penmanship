@@ -475,6 +475,13 @@ noscript {
       </legend>
       <div class="fields">
        <label class="wide">
+        Ruling style
+        <select name="ruling">
+         <option value="letters">Letter practice</option>
+         <option value="palmer-drill">Palmer movement drills</option>
+        </select>
+       </label>
+       <label class="wide">
         Measurement units
         <select name="units">
          <option value="mm">
@@ -504,7 +511,7 @@ noscript {
        </label>
        <label>
         <span>
-         X-height (
+         <span id="height-label">X-height</span> (
          <span class="unit-label">
           mm
          </span>
@@ -606,9 +613,13 @@ noscript {
      <p class="hint">
       Slant-line spacing is measured horizontally along the baseline.
      </p>
-     <p class="hint">
+     <p class="hint" id="letter-guide-help">
       The default rule has three equal 5 mm bands: ascender, letter body, and descender. X-height is the distance from the dashed line to the darker baseline. The row gap is extra blank space between complete rule sets.
      </p>
+    <p class="hint" id="movement-guide-help" hidden>
+     Palmer Drill 1 uses three solid lines, 3/8 inch (9.525 mm) apart.
+     The full drill is 3/4 inch (19.05 mm) high. Row gap adds blank space between drill groups.
+    </p>
      <p class="hint">
       Blank fields print as writing lines. Row count adjusts to fit the page.
      </p>
@@ -716,9 +727,11 @@ for (const key of dimensions) {
   // Unspecified dimensions keep the same physical default, regardless of units.
   dimensionMM[key] = params.has(key)
     ? Number(form.elements[key].value) * unitFactor()
+    : form.elements.ruling.value === "palmer-drill" && key === "xh" ? 9.525
+    : form.elements.ruling.value === "palmer-drill" && key === "gap" ? 3.175
     : Number(form.elements[key].getAttribute("value"));
 }
-if (params.has("preset") && presets[form.elements.preset.value]) {
+if (form.elements.ruling.value === "letters" && params.has("preset") && presets[form.elements.preset.value]) {
   const values = presets[form.elements.preset.value];
   ["asc", "xh", "desc"].forEach((key, index) => {
     if (!params.has(key)) dimensionMM[key] = values[index];
@@ -777,6 +790,11 @@ function config() {
   values.slant = Number(values.slant === "custom" ? values.customSlant : values.slant);
   values.dark = Number(values.dark);
   Object.assign(values, dimensionMM);
+  if (values.ruling === "palmer-drill") {
+    // Reuse the geometry with equal top-to-middle and middle-to-bottom spacing.
+    values.asc = values.xh;
+    values.desc = 0;
+  }
   values.w = values.size === "a4" ? 210 : 215.9;
   values.h = values.size === "a4" ? 297 : 279.4;
   return values;
@@ -793,7 +811,29 @@ function headerRows(values) {
 }
 
 function measure(mm, values) {
-  return `${Number((mm / (values.units === "in" ? 25.4 : 1)).toFixed(values.units === "in" ? 3 : 2))} ${values.units}`;
+  return `${Number((mm / (values.units === "in" ? 25.4 : 1)).toFixed(4))} ${values.units}`;
+}
+
+function ruleDetails(values) {
+  const parts = values.ruling === "palmer-drill"
+    ? ["Palmer movement", `Line spacing: ${measure(values.xh, values)}`, `Drill height: ${measure(values.xh * 2, values)}`]
+    : [`X-height: ${measure(values.xh, values)}`, `Ascender: ${measure(values.asc, values)}`, `Descender: ${measure(values.desc, values)}`];
+  parts.push(`Row gap: ${measure(values.gap, values)}`);
+  if (values.slant) parts.push(`Slant: ${values.slant}°`, `Spacing: ${measure(values.slantGap, values)}`);
+  return parts.join(" · ");
+}
+
+let previousRuling = form.elements.ruling.value;
+let letterDimensions = { xh: 5, gap: 7 };
+function updateRulingControls() {
+  const movement = form.elements.ruling.value === "palmer-drill";
+  document.getElementById("height-label").textContent = movement ? "Line spacing" : "X-height";
+  for (const key of ["asc", "desc", "preset"]) {
+    form.elements[key].disabled = movement;
+    form.elements[key].closest("label").hidden = movement;
+  }
+  document.getElementById("letter-guide-help").hidden = movement;
+  document.getElementById("movement-guide-help").hidden = !movement;
 }
 
 function entry(label, value) {
@@ -803,6 +843,7 @@ function entry(label, value) {
 }
 
 function validate() {
+  updateRulingControls();
   const custom = form.elements.slant.value === "custom";
   document.getElementById("custom-slant-field").hidden = !custom;
   form.elements.customSlant.disabled = !custom;
@@ -841,10 +882,7 @@ function render() {
       </div>`).join("")}
     </div>
     <div class="rule-details" ${values.show.guides ? "" : "hidden"}>
-      <strong>Guide rule details:</strong> X-height: ${measure(values.xh, values)} ·
-      Ascender: ${measure(values.asc, values)} · Descender: ${measure(values.desc, values)} ·
-      Row gap: ${measure(values.gap, values)}
-      ${values.slant ? ` · Slant: ${values.slant}° · Spacing: ${measure(values.slantGap, values)}` : ""}
+      <strong>Guide rule details:</strong> ${esc(ruleDetails(values))}
     </div>
     <svg class="rules" id="rules" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Handwriting practice guidelines"></svg>
     ${values.show.notes ? `<div class="notes" id="printed-notes"><strong>Notes</strong><div class="notes-text">${esc(values.notes)}</div></div>` : ""}
@@ -884,10 +922,14 @@ function render() {
       }
       guides += "</svg>";
     }
-    if (values.asc > 0) guides += line(0, y, width, y, color, 0.15);
-    guides += line(0, y + values.asc, width, y + values.asc, color, 0.15, true);
-    if (values.desc > 0) guides += line(0, baseline + values.desc, width, baseline + values.desc, color, 0.15);
-    baselines += line(0, baseline, width, baseline, "#555", 0.25);
+    if (values.ruling === "palmer-drill") {
+      for (const level of [0, values.xh, values.xh * 2]) guides += line(0, y + level, width, y + level, color, 0.2);
+    } else {
+      if (values.asc > 0) guides += line(0, y, width, y, color, 0.15);
+      guides += line(0, y + values.asc, width, y + values.asc, color, 0.15, true);
+      if (values.desc > 0) guides += line(0, baseline + values.desc, width, baseline + values.desc, color, 0.15);
+      baselines += line(0, baseline, width, baseline, "#555", 0.25);
+    }
   }
   const height = values.show.notes ? (rows ? (rows - 1) * pitch + rowHeight + 0.6 : 0) : available;
   svg.setAttribute("viewBox", `0 0 ${width} ${Math.max(height, 0.01)}`);
@@ -903,7 +945,17 @@ function render() {
 form.addEventListener("submit", event => event.preventDefault());
 form.addEventListener("input", event => {
   const key = event.target.name;
-  if (key === "units") {
+  if (key === "ruling") {
+    if (form.elements.ruling.value === "palmer-drill") {
+      letterDimensions = { xh: dimensionMM.xh, gap: dimensionMM.gap };
+      dimensionMM.xh = 9.525;
+      dimensionMM.gap = 3.175;
+    } else if (previousRuling === "palmer-drill") {
+      Object.assign(dimensionMM, letterDimensions);
+    }
+    previousRuling = form.elements.ruling.value;
+    refreshUnits();
+  } else if (key === "units") {
     refreshUnits();
   } else if (key === "preset" && presets[form.elements.preset.value]) {
     [dimensionMM.asc, dimensionMM.xh, dimensionMM.desc] = presets[form.elements.preset.value];
@@ -932,6 +984,8 @@ document.getElementById("now").addEventListener("click", () => {
 });
 document.getElementById("reset-guides").addEventListener("click", () => {
   form.elements.units.value = "mm";
+  form.elements.ruling.value = "letters";
+  previousRuling = "letters";
   for (const key of dimensions) dimensionMM[key] = Number(form.elements[key].getAttribute("value"));
   form.elements.slant.value = "0";
   form.elements.customSlant.value = "60";
@@ -1000,7 +1054,7 @@ ${tableRows.length ? String.raw`\renewcommand{\arraystretch}{1.5}
 ${tableRows.join(" \\\\\n")}
 \end{tabularx}` : ""}
 ${values.show.guides ? String.raw`\par\vspace{5mm}
-\resizebox{\textwidth}{!}{\textbf{Guide rule details:} X-height: ${measure(values.xh, values)}; Ascender: ${measure(values.asc, values)}; Descender: ${measure(values.desc, values)}; Row gap: ${measure(values.gap, values)}${values.slant ? "; Slant: " + values.slant + " degrees; Spacing: " + measure(values.slantGap, values) : ""}}
+\resizebox{\textwidth}{!}{\textbf{Guide rule details:} ${E(ruleDetails(values)).replace(/°/g, " degrees")}}
 \par\vspace{4mm}` : ""}
 \begin{tikzpicture}[x=1mm,y=-1mm]
 `;
@@ -1017,10 +1071,14 @@ ${values.show.guides ? String.raw`\par\vspace{5mm}
       }
       tex += "\\end{scope}\n";
     }
-    if (values.asc > 0) tex += draw(y, `gray!${values.dark},line width=0.15mm`);
-    tex += draw(y + values.asc, `gray!${values.dark},dashed,line width=0.15mm`);
-    if (values.desc > 0) tex += draw(baseline + values.desc, `gray!${values.dark},line width=0.15mm`);
-    baselines += draw(baseline, "gray!75,line width=0.25mm");
+    if (values.ruling === "palmer-drill") {
+      for (const level of [0, values.xh, values.xh * 2]) tex += draw(y + level, `gray!${values.dark},line width=0.2mm`);
+    } else {
+      if (values.asc > 0) tex += draw(y, `gray!${values.dark},line width=0.15mm`);
+      tex += draw(y + values.asc, `gray!${values.dark},dashed,line width=0.15mm`);
+      if (values.desc > 0) tex += draw(baseline + values.desc, `gray!${values.dark},line width=0.15mm`);
+      baselines += draw(baseline, "gray!75,line width=0.25mm");
+    }
   }
   return tex + baselines + String.raw`\end{tikzpicture}
 ${values.show.notes ? String.raw`\par\vspace{8mm}{\small\textbf{Notes}\par\vspace{2mm}${E(values.notes).replace(/\r?\n/g, String.raw`\\`)}}` : ""}
