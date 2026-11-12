@@ -558,14 +558,20 @@ noscript {
          <option value="0">
           None
          </option>
-         <option value="90">
-          Upright · 90°
+         <option value="52">
+          Spencerian · 52°
+         </option>
+         <option value="55">
+          Engrosser's · 55°
+         </option>
+         <option value="70">
+          Palmer movement · 70°
          </option>
          <option value="65">
           65° from baseline
          </option>
-         <option value="55">
-          55° from baseline
+         <option value="90">
+          Upright · 90°
          </option>
          <option value="custom">
           Custom angle…
@@ -719,7 +725,7 @@ for (const [key, value] of params) {
 // Dynamic presets take precedence over explicit date/time query values.
 const useCurrentDateTime = ["true", "1"].includes(params.get("now"));
 if (useCurrentDateTime) setCurrentDateTime();
-if (params.has("slant") && !["0", "55", "65", "90", "custom"].includes(params.get("slant"))) {
+if (params.has("slant") && !["0", "52", "55", "65", "70", "90", "custom"].includes(params.get("slant"))) {
   form.elements.slant.value = "custom";
   form.elements.customSlant.value = params.get("slant");
 }
