@@ -702,6 +702,9 @@ for (const [key, value] of params) {
     input.value = input.maxLength > 0 ? value.slice(0, input.maxLength) : value;
   }
 }
+// Dynamic presets take precedence over explicit date/time query values.
+const useCurrentDateTime = ["true", "1"].includes(params.get("now"));
+if (useCurrentDateTime) setCurrentDateTime();
 if (params.has("slant") && !["0", "55", "65", "90", "custom"].includes(params.get("slant"))) {
   form.elements.slant.value = "custom";
   form.elements.customSlant.value = params.get("slant");
@@ -948,6 +951,11 @@ document.getElementById("copy-link").addEventListener("click", async () => {
     url.searchParams.set(input.name, input.type === "checkbox" ? String(input.checked) : input.value);
   }
   url.searchParams.set("view", "preview");
+  if (useCurrentDateTime) {
+    url.searchParams.delete("date");
+    url.searchParams.delete("time");
+    url.searchParams.set("now", "true");
+  }
   try {
     await navigator.clipboard.writeText(url.href);
     const button = document.getElementById("copy-link");
