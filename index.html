@@ -97,6 +97,7 @@ aside {
   border-right:1px solid #ced2c9;
 }
 fieldset {
+  min-inline-size:0;
   border:0;
   margin:0 0 24px;
   padding:0;
@@ -110,8 +111,27 @@ legend {
 }
 .fields {
   display:grid;
-  grid-template-columns:1fr 1fr;
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:12px;
+}
+.fields > * {
+  min-width:0;
+}
+.time-field {
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+}
+.time-field-heading {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:4px;
+}
+.time-field-heading button {
+  padding:0 5px;
+  font-size:11px;
+  line-height:16px;
 }
 .wide {
   grid-column:1/-1;
@@ -124,6 +144,8 @@ label {
   color:#536259;
 }
 input,select,textarea {
+  min-width:0;
+  max-width:100%;
   width:100%;
   padding:9px;
   border:1px solid #c6cec5;
@@ -234,7 +256,7 @@ input:focus,select:focus,textarea:focus {
     border-right:0;
   }
   .fields {
-    grid-template-columns:repeat(2,1fr);
+    grid-template-columns:repeat(2,minmax(0,1fr));
   }
   header {
     align-items:flex-start;
@@ -388,12 +410,12 @@ noscript {
         Date
         <input name="date" type="date"/>
        </label>
-       <div style="display:flex;align-items:flex-end;gap:6px">
-        <label style="flex:1;min-width:0">
-         Time
-         <input name="time" type="time"/>
-        </label>
-        <button id="now" type="button" title="Set date and time to the computer's local clock" style="padding:9px">Now</button>
+       <div class="time-field">
+        <div class="time-field-heading">
+         <label for="practice-time">Time</label>
+         <button id="now" type="button" title="Set date and time to the computer's local clock">Now</button>
+        </div>
+        <input id="practice-time" name="time" type="time"/>
        </div>
        <label>
         Clock on printed page
@@ -817,8 +839,8 @@ function render() {
     <div class="rule-details" ${values.show.guides ? "" : "hidden"}>
       <strong>Guide rule details:</strong> X-height: ${measure(values.xh, values)} ·
       Ascender: ${measure(values.asc, values)} · Descender: ${measure(values.desc, values)} ·
-      Row gap: ${measure(values.gap, values)} · Slant: ${values.slant ? `${values.slant}°` : "none"}
-      ${values.slant ? ` · Spacing: ${measure(values.slantGap, values)}` : ""}
+      Row gap: ${measure(values.gap, values)}
+      ${values.slant ? ` · Slant: ${values.slant}° · Spacing: ${measure(values.slantGap, values)}` : ""}
     </div>
     <svg class="rules" id="rules" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Handwriting practice guidelines"></svg>
     ${values.show.notes ? `<div class="notes" id="printed-notes"><strong>Notes</strong><div class="notes-text">${esc(values.notes)}</div></div>` : ""}
@@ -969,7 +991,7 @@ ${tableRows.length ? String.raw`\renewcommand{\arraystretch}{1.5}
 ${tableRows.join(" \\\\\n")}
 \end{tabularx}` : ""}
 ${values.show.guides ? String.raw`\par\vspace{5mm}
-\resizebox{\textwidth}{!}{\textbf{Guide rule details:} X-height: ${measure(values.xh, values)}; Ascender: ${measure(values.asc, values)}; Descender: ${measure(values.desc, values)}; Row gap: ${measure(values.gap, values)}; Slant: ${values.slant ? values.slant + " degrees" : "none"}${values.slant ? "; Spacing: " + measure(values.slantGap, values) : ""}}
+\resizebox{\textwidth}{!}{\textbf{Guide rule details:} X-height: ${measure(values.xh, values)}; Ascender: ${measure(values.asc, values)}; Descender: ${measure(values.desc, values)}; Row gap: ${measure(values.gap, values)}${values.slant ? "; Slant: " + values.slant + " degrees; Spacing: " + measure(values.slantGap, values) : ""}}
 \par\vspace{4mm}` : ""}
 \begin{tikzpicture}[x=1mm,y=-1mm]
 `;
