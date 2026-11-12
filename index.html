@@ -885,8 +885,11 @@ form.addEventListener("input", event => {
 });
 
 document.getElementById("print").addEventListener("click", () => {
-  if (render()) window.print();
-  else { setPreviewMode(false); form.reportValidity(); }
+  if (!render()) { setPreviewMode(false); form.reportValidity(); return; }
+  // Let the SVG/layout update finish before Firefox takes its print snapshot.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => window.print());
+  });
 });
 document.getElementById("edit-settings").addEventListener("click", () => {
   setPreviewMode(false);
@@ -999,7 +1002,8 @@ document.getElementById("tex").addEventListener("click", () => {
 });
 
 
-window.addEventListener("beforeprint", render);
+// The live preview is already current. Do not rebuild it during beforeprint:
+// changing the SVG and page sizing while print preview starts can stall browsers.
 window.addEventListener("error", event => {
   status.textContent = `Preview error: ${event.message}. Try Reset guide settings.`;
 });
